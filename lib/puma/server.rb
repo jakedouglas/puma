@@ -806,7 +806,7 @@ module Puma
 
         lines << line_ending
 
-        fast_write client, lines.to_s
+        #fast_write client, lines.to_s
 
         if response_hijack
           response_hijack.call client
@@ -822,9 +822,10 @@ module Puma
               fast_write client, part
               fast_write client, line_ending
             else
-              fast_write client, part
+              lines << part
             end
 
+            fast_write client, lines.to_s
             client.flush
           end
 
