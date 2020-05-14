@@ -626,6 +626,7 @@ module Puma
     #
     # Finally, it'll return +true+ on keep-alive connections.
     def handle_request(req, lines)
+      started_at = Time.now
       env = req.env
       client = req.io
 
@@ -679,7 +680,8 @@ module Puma
 
       begin
         begin
-          status, headers, res_body = @app.call(env)
+          status = headers = res_body = nil
+          app_time = Benchmark.realtime { status, headers, res_body = @app.call(env) } * 1000
 
           return :async if req.hijacked
 
@@ -825,6 +827,7 @@ module Puma
               lines << part
             end
 
+            fast_write_at = Time.now
             fast_write client, lines.to_s
             client.flush
           end
@@ -839,6 +842,18 @@ module Puma
 
       ensure
         uncork_socket client
+
+        duration = (Time.now - started_at) * 1000
+        non_app = duration - app_time
+        time_to_fast_write = (Time.now - fast_write_at) * 1000
+        request_id = env["HTTP_X_REQUEST_ID"]
+        data = {
+          request_id: request_id,
+          full: duration.round(2),
+          puma: non_app.round(2),
+          ttwf: time_to_fast_write.round(2)
+        }
+        puts "PUMA: #{data.to_json}"
 
         body.close
         req.tempfile.unlink if req.tempfile
