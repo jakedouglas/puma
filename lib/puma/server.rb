@@ -808,12 +808,16 @@ module Puma
 
         lines << line_ending
 
-        #fast_write client, lines.to_s
+        header_write_at = Time.now
+        header_time = Benchmark.realtime { fast_write client, lines.to_s }
 
         if response_hijack
           response_hijack.call client
           return :async
         end
+
+        body_write_at = nil
+        body_time = nil
 
         begin
           res_body.each do |part|
@@ -824,13 +828,16 @@ module Puma
               fast_write client, part
               fast_write client, line_ending
             else
-              lines << part
+              body_write_at = Time.now
+              body_time = Benchmark.realtime { fast_write client, part } * 1000
             end
+
+            client.flush
           end
 
-          fast_write_at = Time.now
-          fast_write client, lines.to_s
-          client.flush
+          #fast_write_at = Time.now
+          #fast_write client, lines.to_s
+          #client.flush
 
           if chunked
             fast_write client, CLOSE_CHUNKED
@@ -845,14 +852,21 @@ module Puma
 
         duration = (Time.now - started_at) * 1000
         non_app = duration - app_time
-        time_to_fast_write = (Time.now - fast_write_at) * 1000
+        time_to_headers = (Time.now - header_write_at) * 1000
+        time_to_body = (Time.now - body_write_at) * 1000
+
         request_id = env["HTTP_X_REQUEST_ID"]
+
         data = {
           request_id: request_id,
           full: duration.round(2),
           puma: non_app.round(2),
-          ttwf: time_to_fast_write.round(2)
+          time_to_headers: time_to_headers.round(2),
+          header_time: header_time.round(2),
+          time_to_body: time_to_body.round(2),
+          body_time: body_time.round(2)
         }
+
         puts "PUMA: #{data.to_json}"
 
         body.close
