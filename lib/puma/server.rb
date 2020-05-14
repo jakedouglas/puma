@@ -826,11 +826,11 @@ module Puma
             else
               lines << part
             end
-
-            fast_write_at = Time.now
-            fast_write client, lines.to_s
-            client.flush
           end
+
+          fast_write_at = Time.now
+          fast_write client, lines.to_s
+          client.flush
 
           if chunked
             fast_write client, CLOSE_CHUNKED
