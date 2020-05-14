@@ -852,8 +852,8 @@ module Puma
 
         duration = (Time.now - started_at) * 1000
         non_app = duration - app_time
-        time_to_headers = (started_at - header_write_at) * 1000
-        time_to_body = (started_at - body_write_at) * 1000
+        time_to_headers = (header_write_at - started_at) * 1000
+        time_to_body = (body_write_at - started_at) * 1000
 
         request_id = env["HTTP_X_REQUEST_ID"]
 
